@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from rest_framework.decorators import action
-from .models import Elevator
-from .serializers import ElevatorSerializer
+from api.models import Elevator
+from api.serializers import ElevatorSerializer
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 
