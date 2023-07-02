@@ -45,6 +45,13 @@ class ElevatorViewSet(viewsets.ModelViewSet):
 
         if not floor or not isinstance(floor, int) or floor <= 0:
             return Response({'error': 'Invalid floor number provided.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if elevator.in_maintenance:
+            return Response({'error': 'Elevator is in maintenance.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if elevator.door_opened:
+            return Response({'error': 'Elevator door is open.'}, status=status.HTTP_400_BAD_REQUEST)
+
 
         # Determine the direction to move the elevator
         if floor > elevator.current_floor:
