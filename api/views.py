@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from rest_framework.decorators import action
-from api.models import Elevator
-from api.serializers import ElevatorSerializer
+from api.models import Elevator, Request
+from api.serializers import ElevatorSerializer, RequestSerializer
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 
@@ -32,3 +32,32 @@ class ElevatorViewSet(viewsets.ModelViewSet):
         elevator = self.get_object()
         serializer = self.get_serializer(elevator)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['post'])
+    def save_request(self, request, pk=None):
+        """
+        API to save a user request to the list of requests for an elevator
+        and determine the direction to move the elevator based on the requested floor
+        """
+        elevator_id = request.data.get('elevator_id')
+        elevator = Elevator.objects.get(pk=elevator_id)
+        floor = request.data.get('floor')
+
+        if not floor or not isinstance(floor, int) or floor <= 0:
+            return Response({'error': 'Invalid floor number provided.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Determine the direction to move the elevator
+        if floor > elevator.current_floor:
+            direction = 1  # Move up
+        elif floor < elevator.current_floor:
+            direction = -1  # Move down
+        else:
+            direction = 0  # Stay stationary
+
+        # Save the request
+        Request.objects.create(elevator=elevator, floor=floor)
+
+        return Response({'message': 'User request saved successfully.',
+                         'elevator_id': elevator.pk,
+                         'direction': direction},
+                        status=status.HTTP_201_CREATED)
