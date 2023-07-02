@@ -1,10 +1,12 @@
 from django.urls import path,include
-from .views import ElevatorViewSet
-from rest_framework.routers import DefaultRouter
+from api.views import ElevatorViewSet
+from rest_framework import routers
 
-elevator_router = DefaultRouter()
-elevator_router.register(r'elevators',ElevatorViewSet)
+router = routers.DefaultRouter()
+router.register(r'elevators',ElevatorViewSet)
 
 urlpatterns = [
-    path('',include(elevator_router.urls))
-]
+    path('',include(router.urls)),
+    path('initialize_system/', ElevatorViewSet.as_view({'post': 'initialize_system'}), name='initialize_system'),
+    path('<int:pk>/get_elevator_details/', ElevatorViewSet.as_view({'get': 'get_elevator_details'}), name='get_elevator_details'),
+] 
