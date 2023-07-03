@@ -34,39 +34,54 @@ class ElevatorViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     @action(detail=False, methods=['post'])
-    def save_request(self, request, pk=None):
+    def save_request(self, request):
         """
-        API to save a user request to the list of requests for an elevator
-        and determine the direction to move the elevator based on the requested floor
+        API to save a user request and assign the most optimal elevator to the request
         """
-        elevator_id = request.data.get('elevator_id')
-        elevator = Elevator.objects.get(pk=elevator_id)
-        floor = request.data.get('floor')
+        requested_from_floor = request.data.get('requested_from_floor')
+        requested_to_floor = request.data.get('requested_to_floor')
 
-        if not floor or not isinstance(floor, int) or floor <= 0:
+        if not requested_from_floor or not requested_to_floor or not isinstance(requested_from_floor, int) or not isinstance(requested_to_floor, int) or requested_from_floor <= 0 or requested_to_floor <= 0:
             return Response({'error': 'Invalid floor number provided.'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
+        # Get all elevators
+        elevators = Elevator.objects.all()
+
+        if not elevators:
+            return Response({'error': 'No elevators available.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Calculate the distances from each elevator to the requested floors
+        distances = []
+        for elevator in elevators:
+            distance = abs(requested_from_floor - elevator.current_floor)
+            distances.append({'elevator': elevator, 'distance': distance})
+
+        # Sort the elevators based on distances in ascending order
+        sorted_elevators = sorted(distances, key=lambda x: x['distance'])
+
+        # Assign the closest elevator to the request
+        elevator = sorted_elevators[0]['elevator']
+
         if elevator.in_maintenance:
             return Response({'error': 'Elevator is in maintenance.'}, status=status.HTTP_400_BAD_REQUEST)
 
         if elevator.door_opened:
             return Response({'error': 'Elevator door is open.'}, status=status.HTTP_400_BAD_REQUEST)
 
-
         # Determine the direction to move the elevator
-        if floor > elevator.current_floor:
+        if requested_to_floor > elevator.current_floor:
             direction = 1  # Move up
-        elif floor < elevator.current_floor:
+        elif requested_to_floor < elevator.current_floor:
             direction = -1  # Move down
         else:
             direction = 0  # Stay stationary
 
         # Save the request
-        Request.objects.create(elevator=elevator, floor=floor)
+        Request.objects.create(elevator=elevator, floor=requested_from_floor)
 
         return Response({'message': 'User request saved successfully.',
-                         'elevator_id': elevator.pk,
-                         'direction': direction},
+                        'elevator_id': elevator.pk,
+                        'direction': direction},
                         status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['get'])
@@ -82,18 +97,6 @@ class ElevatorViewSet(viewsets.ModelViewSet):
         except Elevator.DoesNotExist:
             return Response({'error': 'Elevator not found.'}, status=status.HTTP_404_NOT_FOUND)
         
-    
-    def get_closest_floor(self, elevator):
-        # Get all the requests for the elevator
-        requests = elevator.requests.all()
-
-        if not requests:
-            return elevator.current_floor
-
-        distances = [abs(request.floor - elevator.current_floor) for request in requests]
-        closest_floor_index = distances.index(min(distances))
-        closest_floor = requests[closest_floor_index].floor
-        return closest_floor
 
     @action(detail=True, methods=['get'])
     def get_next_floor(self, request, pk=None):
@@ -102,7 +105,12 @@ class ElevatorViewSet(viewsets.ModelViewSet):
         """
         try:
             elevator = self.get_object()
-            next_floor = self.get_closest_floor(elevator)
+
+            if elevator.current_floor == elevator.requested_from_floor:
+                next_floor = elevator.requested_to_floor
+            else:
+                next_floor = elevator.requested_from_floor
+
             return Response({'next_floor': next_floor})
         except Elevator.DoesNotExist:
             return Response({'error': 'Elevator not found.'}, status=status.HTTP_404_NOT_FOUND)
