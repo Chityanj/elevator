@@ -217,6 +217,8 @@ class ElevatorViewSet(viewsets.ModelViewSet):
             old = current_floor
 
             requests = Request.objects.filter(elevator=elevator,is_complete=False).order_by('created_at')
+            if not requests:
+                return Response({'error': 'No more uncompleted requests found for this elevator.'}, status=status.HTTP_400_BAD_REQUEST)
 
             request = requests.first()
 
