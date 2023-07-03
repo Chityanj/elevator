@@ -18,6 +18,7 @@ class Request(models.Model):
     current_floor = models.PositiveIntegerField(blank=True, null=True)
     requested_to_floor = models.PositiveIntegerField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    is_complete = models.BooleanField(default=False)
 
     def __str__(self):
         return f"Request {self.pk} for Elevator {self.elevator.pk}" 

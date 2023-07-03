@@ -99,7 +99,7 @@ class ElevatorViewSet(viewsets.ModelViewSet):
             current_floor = elevator.current_floor
 
             # Get the requests for the elevator
-            requests = Request.objects.filter(elevator=elevator).order_by('created_at')
+            requests = Request. objects.filter(elevator=elevator,is_complete=False).order_by('created_at')
 
             if not requests:
                 return Response({'error': 'No requests found for the elevator.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -140,7 +140,7 @@ class ElevatorViewSet(viewsets.ModelViewSet):
             current_floor = elevator.current_floor
 
             # Get the requests for the elevator
-            requests = Request.objects.filter(elevator=elevator).order_by('created_at')
+            requests = Request.objects.filter(elevator=elevator,is_complete=False).order_by('created_at')
 
             if not requests:
                 return Response({'error': 'No requests found for the elevator.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -216,7 +216,7 @@ class ElevatorViewSet(viewsets.ModelViewSet):
             current_floor = elevator.current_floor
             old = current_floor
 
-            requests = Request.objects.filter(elevator=elevator).order_by('created_at')
+            requests = Request.objects.filter(elevator=elevator,is_complete=False).order_by('created_at')
 
             request = requests.first()
 
@@ -225,9 +225,11 @@ class ElevatorViewSet(viewsets.ModelViewSet):
 
             if current_floor == requested_from_floor:
                 elevator.current_floor = requested_to_floor
+                request.is_complete = True
             else:
                 elevator.current_floor = requested_from_floor
             elevator.save()
+            request.save()
             return Response({'message': 'Elevator moved successfully.',
                              'elevator_id': elevator.pk,
                              'current_floor': elevator.current_floor,
