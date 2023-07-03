@@ -106,3 +106,20 @@ class ElevatorViewSet(viewsets.ModelViewSet):
             return Response({'next_floor': next_floor})
         except Elevator.DoesNotExist:
             return Response({'error': 'Elevator not found.'}, status=status.HTTP_404_NOT_FOUND)
+        
+    @action(detail=True, methods=['get'])
+    def direction(self, request, pk=None):
+        """
+        API to check the direction of elevaor
+        """
+        try:
+            elevator = self.get_object()
+
+            if elevator.current_floor < self.get_closest_floor(elevator):
+                return Response({'Currently Moving UP'})
+            else:
+                return Response({'Currently Moving DOWN'})
+        except Elevator.DoesNotExist:
+            return Response({'error': 'Elevator not found.'}, status=status.HTTP_404_NOT_FOUND)
+    
+    
