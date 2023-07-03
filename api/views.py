@@ -45,7 +45,7 @@ class ElevatorViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Invalid floor number provided.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Get all elevators
-        elevators = Elevator.objects.filter(in_maintenance=False,door_open=False)
+        elevators = Elevator.objects.filter(in_maintenance=False,door_opened=False)
 
         if not elevators:
             return Response({'error': 'No elevators available.'}, status=status.HTTP_400_BAD_REQUEST)
