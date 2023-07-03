@@ -24,15 +24,6 @@ class ElevatorViewSet(viewsets.ModelViewSet):
 
         return Response({"message": f"{num_elevators} elevators initialized successfully.","elevators": elevators},status=status.HTTP_200_OK) 
     
-    @action(detail=True, methods=['get'])
-    def get_elevator_details(self, request, pk=None):
-        """
-        API to fetch details about a specific elevator
-        """
-        elevator = self.get_object()
-        serializer = self.get_serializer(elevator)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-    
     @action(detail=False, methods=['post'])
     def save_request(self, request):
         """
@@ -77,7 +68,7 @@ class ElevatorViewSet(viewsets.ModelViewSet):
             direction = 0  # Stay stationary
 
         # Save the request
-        Request.objects.create(elevator=elevator, floor=requested_from_floor)
+        Request.objects.create(elevator=elevator, current_floor=elevator.current_floor,requested_from_floor=requested_from_floor,requested_to_floor=requested_to_floor)
 
         return Response({'message': 'User request saved successfully.',
                         'elevator_id': elevator.pk,
@@ -97,7 +88,6 @@ class ElevatorViewSet(viewsets.ModelViewSet):
         except Elevator.DoesNotExist:
             return Response({'error': 'Elevator not found.'}, status=status.HTTP_404_NOT_FOUND)
         
-
     @action(detail=True, methods=['get'])
     def get_next_floor(self, request, pk=None):
         """
@@ -106,27 +96,91 @@ class ElevatorViewSet(viewsets.ModelViewSet):
         try:
             elevator = self.get_object()
 
-            if elevator.current_floor == elevator.requested_from_floor:
-                next_floor = elevator.requested_to_floor
-            else:
-                next_floor = elevator.requested_from_floor
+            if elevator.in_maintenance:
+                return Response({'error': 'Elevator is in maintenance.'}, status=status.HTTP_400_BAD_REQUEST)
 
-            return Response({'next_floor': next_floor})
+            if elevator.door_opened:
+                return Response({'error': 'Elevator door is open.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            current_floor = elevator.current_floor
+
+            # Get the requests for the elevator
+            requests = Request.objects.filter(elevator=elevator).order_by('created_at')
+
+            if not requests:
+                return Response({'error': 'No requests found for the elevator.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Get the first request from the queue
+            request = requests.first()
+
+            requested_from_floor = request.requested_from_floor
+            requested_to_floor = request.requested_to_floor
+
+            if current_floor == requested_from_floor:
+                next_floor = requested_to_floor
+            else:
+                next_floor = requested_from_floor
+
+            if next_floor > current_floor:
+                direction = 1  # Move up
+            elif next_floor < current_floor:
+                direction = -1  # Move down
+            else:
+                direction = 0  # Stay stationary
+
+            return Response({'message': 'Next floor retrieved successfully.',
+                            'elevator_id': elevator.pk,
+                            'next_floor': next_floor,
+                            'direction': direction},
+                            status=status.HTTP_200_OK)
         except Elevator.DoesNotExist:
             return Response({'error': 'Elevator not found.'}, status=status.HTTP_404_NOT_FOUND)
+    
         
     @action(detail=True, methods=['get'])
     def direction(self, request, pk=None):
         """
-        API to check the direction of elevaor
+         API to check the direction of elevaor
         """
         try:
             elevator = self.get_object()
 
-            if elevator.current_floor < self.get_closest_floor(elevator):
-                return Response({'Currently Moving UP'})
+            if elevator.in_maintenance:
+                return Response({'error': 'Elevator is in maintenance.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            if elevator.door_opened:
+                return Response({'error': 'Elevator door is open.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            current_floor = elevator.current_floor
+
+            # Get the requests for the elevator
+            requests = Request.objects.filter(elevator=elevator).order_by('created_at')
+
+            if not requests:
+                return Response({'error': 'No requests found for the elevator.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Get the first request from the queue
+            request = requests.first()
+
+            requested_from_floor = request.requested_from_floor
+            requested_to_floor = request.requested_to_floor
+
+            if current_floor == requested_from_floor:
+                next_floor = requested_to_floor
             else:
-                return Response({'Currently Moving DOWN'})
+                next_floor = requested_from_floor
+
+            if next_floor > current_floor:
+                direction = "up"
+            elif next_floor < current_floor:
+                direction = "down"
+            else:
+                direction = "stationary"
+
+            return Response({'message': 'Direction retrieved successfully.',
+                            'elevator_id': elevator.pk,
+                            'direction': direction},
+                            status=status.HTTP_200_OK)
         except Elevator.DoesNotExist:
             return Response({'error': 'Elevator not found.'}, status=status.HTTP_404_NOT_FOUND)
     
@@ -156,5 +210,58 @@ class ElevatorViewSet(viewsets.ModelViewSet):
 
             status_message = 'Elevator marked as in maintenance.' if elevator.in_maintenance else 'Elevator marked as not in maintenance.'
             return Response({'message': status_message})
+        except Elevator.DoesNotExist:
+            return Response({'error': 'Elevator not found.'}, status=status.HTTP_404_NOT_FOUND)
+        
+
+    @action(detail=True, methods=['post'])
+    def move_elevator(self, request, pk=None):
+        """
+        API to move the elevator to the requested floors
+        """
+        try:
+            elevator = self.get_object()
+
+            if elevator.in_maintenance:
+                return Response({'error': 'Elevator is in maintenance.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            if elevator.door_opened:
+                return Response({'error': 'Elevator door is open.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            requested_from_floor = elevator.requested_from_floor
+            requested_to_floor = elevator.requested_to_floor
+
+            if not requested_from_floor:
+                return Response({'error': 'No requested from floor found for the elevator.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            if requested_from_floor == elevator.current_floor:
+                # Move the elevator to the requested to floor
+                elevator.current_floor = requested_to_floor
+                elevator.requested_from_floor = None
+                elevator.requested_to_floor = None
+                elevator.save()
+
+                # Save the request for the requested to floor
+                Request.objects.create(elevator=elevator, floor=requested_to_floor)
+
+                return Response({'elevator moved to': elevator.current_floor,
+                                'elevator_id': elevator.pk,
+                                'direction': 1 if requested_to_floor > elevator.current_floor else -1},
+                                status=status.HTTP_200_OK)
+            else:
+                # Determine the direction to move the elevator
+                direction = 1 if requested_from_floor > elevator.current_floor else -1
+
+                # Move the elevator to the requested from floor
+                elevator.current_floor = requested_from_floor
+                elevator.save()
+
+                # Save the request for the requested from floor
+                Request.objects.create(elevator=elevator, floor=requested_from_floor)
+
+                return Response({'message': 'Elevator moved to requested from floor.',
+                                'elevator_id': elevator.pk,
+                                'direction': direction},
+                                status=status.HTTP_200_OK)
         except Elevator.DoesNotExist:
             return Response({'error': 'Elevator not found.'}, status=status.HTTP_404_NOT_FOUND)

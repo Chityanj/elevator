@@ -14,7 +14,9 @@ class Elevator(models.Model):
     
 class Request(models.Model):
     elevator = models.ForeignKey(Elevator, on_delete=models.CASCADE, related_name='requests')
-    floor = models.PositiveIntegerField()
+    requested_from_floor = models.PositiveIntegerField(blank=True, null=True)
+    current_floor = models.PositiveIntegerField(blank=True, null=True)
+    requested_to_floor = models.PositiveIntegerField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
