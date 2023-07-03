@@ -81,3 +81,28 @@ class ElevatorViewSet(viewsets.ModelViewSet):
             return Response(serializer.data)
         except Elevator.DoesNotExist:
             return Response({'error': 'Elevator not found.'}, status=status.HTTP_404_NOT_FOUND)
+        
+    
+    def get_closest_floor(self, elevator):
+        # Get all the requests for the elevator
+        requests = elevator.requests.all()
+
+        if not requests:
+            return elevator.current_floor
+
+        distances = [abs(request.floor - elevator.current_floor) for request in requests]
+        closest_floor_index = distances.index(min(distances))
+        closest_floor = requests[closest_floor_index].floor
+        return closest_floor
+
+    @action(detail=True, methods=['get'])
+    def get_next_floor(self, request, pk=None):
+        """
+        API to fetch the next destination floor for a given elevator
+        """
+        try:
+            elevator = self.get_object()
+            next_floor = self.get_closest_floor(elevator)
+            return Response({'next_floor': next_floor})
+        except Elevator.DoesNotExist:
+            return Response({'error': 'Elevator not found.'}, status=status.HTTP_404_NOT_FOUND)
