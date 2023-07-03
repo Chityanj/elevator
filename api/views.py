@@ -68,3 +68,16 @@ class ElevatorViewSet(viewsets.ModelViewSet):
                          'elevator_id': elevator.pk,
                          'direction': direction},
                         status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['get'])
+    def get_requests(self, request, pk=None):
+        """
+        API to fetch all requests for a given elevator
+        """
+        try:
+            elevator = self.get_object()
+            requests = Request.objects.filter(elevator=elevator)
+            serializer = RequestSerializer(requests, many=True)
+            return Response(serializer.data)
+        except Elevator.DoesNotExist:
+            return Response({'error': 'Elevator not found.'}, status=status.HTTP_404_NOT_FOUND)
