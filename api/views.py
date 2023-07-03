@@ -122,4 +122,31 @@ class ElevatorViewSet(viewsets.ModelViewSet):
         except Elevator.DoesNotExist:
             return Response({'error': 'Elevator not found.'}, status=status.HTTP_404_NOT_FOUND)
     
+    @action(detail=True, methods=['post'])
+    def toggle_door(self, request, pk=None):
+        """
+        to toggle the door of elevator
+        """
+        try:
+            elevator = self.get_object()
+            elevator.door_opened = not elevator.door_opened #Using the not operator to invert the boolean value
+            elevator.save()
+            return Response({'door_opened': elevator.door_opened})
+        except Elevator.DoesNotExist:
+            return Response({'error': 'Elevator not found.'}, status=status.HTTP_404_NOT_FOUND)
+        
     
+    @action(detail=True, methods=['post'])
+    def toggle_maintenance(self, request, pk=None):
+        """
+        API to toggle the maintenance status of an elevator
+        """
+        try:
+            elevator = self.get_object()
+            elevator.in_maintenance = not elevator.in_maintenance #Using the not operator to invert the boolean value
+            elevator.save()
+
+            status_message = 'Elevator marked as in maintenance.' if elevator.in_maintenance else 'Elevator marked as not in maintenance.'
+            return Response({'message': status_message})
+        except Elevator.DoesNotExist:
+            return Response({'error': 'Elevator not found.'}, status=status.HTTP_404_NOT_FOUND)

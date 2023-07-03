@@ -13,4 +13,6 @@ urlpatterns = [
     path('<int:pk>/get_requests/', ElevatorViewSet.as_view({'get': 'get_requests'}), name='elevator-get-requests'),
     path('<int:pk>/get_next_floor/', ElevatorViewSet.as_view({'get': 'get_next_floor'}), name='get_next_floor'),
     path('<int:pk>/direction/', ElevatorViewSet.as_view({'get': 'direction'}), name='direction'),
+    path('<int:pk>/toggle_door/', ElevatorViewSet.as_view({'post': 'toggle_door'}), name='elevator-toggle-door'),
+    path('<int:pk>/toggle_maintenance/', ElevatorViewSet.as_view({'post': 'toggle_maintenance'}), name='elevator-toggle-maintenance'),
 ] 
