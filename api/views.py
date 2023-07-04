@@ -44,7 +44,11 @@ class ElevatorViewSet(viewsets.ModelViewSet):
         # Calculate the distances from each elevator to the requested floors
         distances = []
         for elevator in elevators:
-            distance = abs(requested_from_floor - elevator.current_floor)
+            non_completed = Request.objects.filter(elevator=elevator,is_complete=False).order_by('created_at').first()
+            if non_completed:
+                distance = abs(requested_from_floor - non_completed.requested_to_floor)
+            else:
+                distance = abs(requested_from_floor - elevator.current_floor)
             distances.append({'elevator': elevator, 'distance': distance})
 
         # Sort the elevators based on distances in ascending order
@@ -52,12 +56,6 @@ class ElevatorViewSet(viewsets.ModelViewSet):
 
         # Assign the closest elevator to the request
         elevator = sorted_elevators[0]['elevator']
-
-        if elevator.in_maintenance:
-            return Response({'error': 'Elevator is in maintenance.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        if elevator.door_opened:
-            return Response({'error': 'Elevator door is open.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Determine the direction to move the elevator
         if requested_to_floor > elevator.current_floor:
