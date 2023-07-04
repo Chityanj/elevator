@@ -57,20 +57,11 @@ class ElevatorViewSet(viewsets.ModelViewSet):
         # Assign the closest elevator to the request
         elevator = sorted_elevators[0]['elevator']
 
-        # Determine the direction to move the elevator
-        if requested_to_floor > elevator.current_floor:
-            direction = 1  # Move up
-        elif requested_to_floor < elevator.current_floor:
-            direction = -1  # Move down
-        else:
-            direction = 0  # Stay stationary
-
         # Save the request
         Request.objects.create(elevator=elevator, current_floor=elevator.current_floor,requested_from_floor=requested_from_floor,requested_to_floor=requested_to_floor)
 
         return Response({'message': 'User request saved successfully.',
-                        'elevator_id': elevator.pk,
-                        'direction': direction},
+                        'elevator_id': elevator.pk,},
                         status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['get'])
